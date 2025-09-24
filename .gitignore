@@ -16,7 +16,7 @@ staticfiles/
 local_settings.py
 
 # Ignore settings.py (adjust if your app name is different)
-*/settings.py
+
 
 # Environment variables
 .env
