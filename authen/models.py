@@ -17,6 +17,11 @@ class UserProfile(models.Model):
 
 
 
+    
+
+
+
+
 
 """class UserProfile(models.Model):
     username = models.CharField(max_length=100)

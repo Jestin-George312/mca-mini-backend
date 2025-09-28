@@ -61,7 +61,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'django_extensions',
-    'authen'
+    'authen',
+    'materials'
 ]
 
 
@@ -107,8 +108,12 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mca_mini',
+        'USER': 'postgres',             # or your custom DB user
+        'PASSWORD': 'root',             # replace with your actual password
+        'HOST': 'localhost',            # or your server IP
+        'PORT': '5435',                 # default PostgreSQL port
     }
 }
 

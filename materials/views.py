@@ -1,0 +1,51 @@
+import os
+import tempfile
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser
+from rest_framework import status
+
+from django.conf import settings
+
+from .models import Material, MaterialAccess
+from .utils.drive_api import upload_file_to_drive, generate_public_url
+
+
+class UploadMaterialView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            for chunk in uploaded_file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        # Upload to Google Drive
+        drive_file_id = upload_file_to_drive(tmp_path, uploaded_file.name)
+        os.remove(tmp_path)
+
+        if not drive_file_id:
+            return Response({'error': 'Google Drive upload failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Save to database
+        material = Material.objects.create(title=uploaded_file.name, drive_file_id=drive_file_id)
+        MaterialAccess.objects.create(user=request.user, material=material)
+
+        # Generate public URLs
+        public_urls = generate_public_url(drive_file_id)
+
+        return Response({
+            'message': 'File uploaded successfully',
+            'material_id': material.id,
+            'drive_file_id': drive_file_id,
+            'view_url': public_urls.get('view_url'),
+            'download_url': public_urls.get('download_url')
+        }, status=status.HTTP_201_CREATED)
