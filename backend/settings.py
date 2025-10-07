@@ -62,7 +62,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_extensions',
     'authen',
-    'materials'
+    'materials',
+    'topic_analysis',
+    'quiz',
+    'timetable',
+    'reports'
 ]
 
 
