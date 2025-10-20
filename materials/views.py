@@ -72,3 +72,28 @@ class UploadMaterialView(APIView):
             'view_url': view_url,
             'download_url': download_url
         }, status=status.HTTP_201_CREATED)
+
+
+
+class MaterialListView(APIView):
+    """
+    Provides a list of materials accessible by the currently authenticated user
+    by manually creating the JSON structure.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        user_materials = Material.objects.filter(materialaccess__user=user)
+
+        # Manually build the list of dictionaries
+        data = []
+        for material in user_materials:
+            data.append({
+                'id': material.id,
+                'title': material.title,
+                'subject': material.subject,
+            })
+        
+        return Response(data)
+

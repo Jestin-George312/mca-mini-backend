@@ -38,6 +38,8 @@ from django.urls import path,include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('authen.urls')),
-    path('api/upload',include('materials.urls')),
+    path('api/upload/',include('materials.urls')),
    path('topic-analysis/', include('topic_analysis.urls')), 
+   path('api/timetable/', include('timetable.urls')),
+   path('api/quiz/', include('quiz.urls')),
 ]
