@@ -1,8 +1,9 @@
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST,require_GET
 from django.contrib.auth.decorators import login_required
 from materials.models import Material
 from .analysis_service import analyze_material
+from .models import Topic
 
 # For a production setup, you would use a task queue like Celery
 # from .tasks import run_analysis_task
@@ -39,3 +40,36 @@ def trigger_analysis(request, material_id):
         # In a real app, you would log this exception.
         print(f"An error occurred during analysis: {e}")
         return JsonResponse({'status': 'error', 'message': 'An unexpected error occurred during analysis.'}, status=500)
+
+
+@require_GET
+def get_material_topics(request, material_id):
+    """
+    Fetch all topics related to a specific material.
+    Returns a JSON list of topics with their details.
+    """
+    try:
+        material = Material.objects.get(pk=material_id)
+    except Material.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Material not found.'}, status=404)
+
+    topics = Topic.objects.filter(material=material).order_by('sequence_number')
+
+    topic_data = [
+        {
+            'id': topic.id,
+            'topic_name': topic.topic_name,
+            'difficulty_score': float(topic.difficulty_score),
+            'difficulty_class': topic.difficulty_class,
+            'summary': topic.summary,
+            'sequence_number': topic.sequence_number
+        }
+        for topic in topics
+    ]
+
+    return JsonResponse({
+        'status': 'success',
+        'material_title': material.title,
+        'total_topics': len(topic_data),
+        'topics': topic_data
+    }, status=200)

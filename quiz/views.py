@@ -1,11 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.conf import settings
-
+ 
 from topic_analysis.models import Topic
-from .models import QuizQuestion
+from .models import QuizQuestion,QuizResult
 from .utils.pdf_utils import extract_text_from_pdf
 import google.generativeai as genai
 import json, os
@@ -46,7 +46,7 @@ class GenerateQuestionsView(APIView):
         prompt = f"""
 You are a quiz generator.
 
-Generate 5 multiple choice questions (A–D) about the topic "{topic_title}".
+Generate 10 multiple choice questions (A–D) about the topic "{topic_title}".
 Use the following study material for context.
 
 {pdf_text[:12000]}
@@ -104,3 +104,86 @@ Return the output strictly as JSON in this format:
             "questions_created": len(questions),
             "questions": questions
         })
+
+
+class GetQuestionsByTopicView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, topic_id):
+        try:
+            topic = Topic.objects.get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        questions = QuizQuestion.objects.filter(topic=topic)
+        if not questions.exists():
+            # No questions yet → Generate automatically
+            from .views import GenerateQuestionsView
+            generator = GenerateQuestionsView()
+            return generator.post(request, topic_id)
+
+        # If questions exist, return them
+        serialized_questions = [
+            {
+                "id": q.id,
+                "question_text": q.question_text,
+                "option_a": q.option_a,
+                "option_b": q.option_b,
+                "option_c": q.option_c,
+                "option_d": q.option_d,
+                "correct_option": q.correct_option,
+            }
+            for q in questions
+        ]
+
+        return Response({
+            "topic": topic.topic_name,
+            "total_questions": len(serialized_questions),
+            "questions": serialized_questions
+        })
+
+class SaveQuizResponseView(APIView):
+    """
+    Receives the user's quiz score and saves it to the database.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        user = request.user
+        
+        topic_id = data.get('topicId')
+        score = data.get('score')
+        total_questions = data.get('totalQuestions')
+
+        if not all([topic_id, score is not None, total_questions is not None]):
+            return Response(
+                {'error': 'Missing data. Required: topicId, score, totalQuestions'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            topic = Topic.objects.get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response(
+                {'error': 'Topic not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Create the new result
+        try:
+            QuizResult.objects.create(
+                user=user,
+                topic=topic,
+                score=int(score),
+                total_questions=int(total_questions)
+            )
+            return Response(
+                {'message': 'Quiz response saved successfully!'}, 
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to save quiz result: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )        

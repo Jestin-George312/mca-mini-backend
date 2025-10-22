@@ -42,4 +42,5 @@ urlpatterns = [
    path('topic-analysis/', include('topic_analysis.urls')), 
    path('api/timetable/', include('timetable.urls')),
    path('api/quiz/', include('quiz.urls')),
+   path('api/reports/', include('reports.urls')),
 ]
