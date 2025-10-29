@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="module">
+    <h2>{% trans 'User Activity Graph' %} 📊</h2>
+    <p>This graph shows users who have logged in within the last 30 days vs. those who have not.</p>
+    <div style="text-align: center; padding: 20px;">
+        <img src="data:image/png;base64,{{ graph_data }}" alt="User Activity Graph">
+    </div>
+</div>
+{% endblock %}

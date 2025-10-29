@@ -1,0 +1,32 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+    <div class="module" id="user-analytics">
+        <h2 style="padding-left: 10px;">{% trans 'User Analytics' %} 📊</h2>
+        <ul style="list-style-type: none; padding-left: 20px; line-height: 1.8;">
+            
+            <li>
+                <strong>{% trans 'Total Users' %}:</strong>
+                <a href="{% url 'admin:auth_user_changelist' %}">{{ total_users }}</a>
+            </li>
+            
+            <li>
+                <strong style="color: #0c660c;">{% trans 'Active Users (Last 30 Days)' %}:</strong>
+                {{ active_users }}
+            </li>
+
+            <li>
+                <strong style="color: #9e1a1a;">{% trans 'Passive Users' %}:</strong>
+                {{ passive_users }}
+            </li>
+
+            <li style="padding-top: 10px;">
+                <a href="{% url 'user_graph' %}" class="button">View Activity Graph</a>
+            </li>
+
+        </ul>
+    </div>
+
+    {{ block.super }}
+{% endblock %}

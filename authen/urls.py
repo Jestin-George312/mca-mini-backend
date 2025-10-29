@@ -14,14 +14,23 @@ urlpatterns = [
 """
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
+
+
+
+
+
 #from .views import SendOtpView, VerifyOtpAndResetPasswordView
 from .views import (
     SignupView,
     VerifySignupOtpView,
     SendOtpView,
     VerifyOtpAndResetPasswordView,
-    TokenRefreshView
+    TokenRefreshView,
+    UpdateUserProfileView,
+    GetUserProfileView
 )
+
+
 
 urlpatterns = [
     path("signup/", SignupView.as_view(), name="signup"),
@@ -30,4 +39,10 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("send-otp/", SendOtpView.as_view(), name="send_otp"),
     path("verify-otp/", VerifyOtpAndResetPasswordView.as_view(), name="verify_otp"),
+
+
+    path("update-profile/", UpdateUserProfileView.as_view(), name="update_profile"),
+    
+    # <-- 2. Add this new URL pattern -->
+    path("profile/", GetUserProfileView.as_view(), name="get_profile"),
 ]

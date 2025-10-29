@@ -35,7 +35,7 @@ from .models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework import status
 from datetime import timedelta
 from django.conf import settings
@@ -195,3 +195,70 @@ class VerifySignupOtpView(APIView):
         profile.save()
 
         return Response({"message": "Signup successful. OTP verified!"}, status=status.HTTP_200_OK)
+
+
+class UpdateUserProfileView(APIView):
+    """
+    View to update user's email, password, and name.
+    User must be authenticated.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        user = request.user
+        data = request.data
+
+        # Handle email update (no change)
+        if 'email' in data:
+            new_email = data['email']
+            if not new_email:
+                return Response({"error": "Email cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=new_email).exclude(pk=user.pk).exists():
+                return Response({"error": "This email is already in use."}, status=status.HTTP_400_BAD_REQUEST)
+            user.email = new_email
+
+        # Handle password update (no change)
+        if 'password' in data:
+            new_password = data['password']
+            if not new_password:
+                 return Response({"error": "Password cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(new_password)
+
+        # --- ADD THIS SECTION ---
+        # Handle name update
+        if 'name' in data:
+            full_name = data['name'].strip().split(' ', 1)
+            user.first_name = full_name[0]
+            if len(full_name) > 1:
+                user.last_name = full_name[1]
+            else:
+                user.last_name = "" # Clear last name if only first name is provided
+        # --- END OF ADDED SECTION ---
+
+        # Save the changes
+        try:
+            user.save()
+        except Exception as e:
+            return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"message": "Profile updated successfully."}, status=status.HTTP_200_OK)
+
+
+class GetUserProfileView(APIView):
+    """
+    View to get the current authenticated user's profile data.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # Combine first_name and last_name into a single 'name' field
+        # to match what your frontend expects.
+        full_name = f"{user.first_name} {user.last_name}".strip()
+
+        return Response({
+            "username": user.username,
+            "email": user.email,
+            "name": full_name if full_name else user.username, # Fallback to username
+        }, status=status.HTTP_200_OK)

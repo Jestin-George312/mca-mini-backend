@@ -68,3 +68,30 @@ def generate_public_url(file_id):
     except HttpError as error:
         print(f'Permission error: {error}')
         return None
+
+
+
+def delete_file_from_drive(file_id):
+    """
+    Permanently deletes a file from Google Drive.
+    """
+    service = get_drive_service()
+    if not service:
+        # If the service fails to initialize, raise an exception
+        # to stop the deletion process.
+        raise Exception("Failed to get Google Drive service.")
+
+    try:
+        service.files().delete(fileId=file_id).execute()
+        print(f"Successfully deleted file with ID: {file_id} from Google Drive.")
+        return True
+    except HttpError as error:
+        # If the error is "file not found", it's safe to proceed
+        # with deleting the database record.
+        if error.resp.status == 404:
+            print(f"File with ID: {file_id} not found in Drive. Proceeding with DB delete.")
+            return True
+        
+        # For other errors, log it and re-raise to stop the view
+        print(f'An error occurred while deleting file {file_id}: {error}')
+        raise error

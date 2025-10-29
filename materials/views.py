@@ -6,9 +6,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
 from rest_framework import status
-
+from django.db import transaction
 from .models import Material, MaterialAccess
-from .utils.drive_api import upload_file_to_drive, generate_public_url
+from .utils.drive_api import upload_file_to_drive, generate_public_url, delete_file_from_drive
 from topic_analysis.analysis_service import analyze_material
 
 class UploadMaterialView(APIView):
@@ -93,7 +93,64 @@ class MaterialListView(APIView):
                 'id': material.id,
                 'title': material.title,
                 'subject': material.subject,
+                'view_url': material.view_url,
             })
         
         return Response(data)
 
+
+
+class DeleteMaterialView(APIView):
+    """
+    Handles DELETE requests to remove a material from Google Drive and the database.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, material_id, *args, **kwargs):
+        user = request.user
+
+        try:
+            # 1. Find the material
+            material = Material.objects.get(id=material_id)
+
+            # 2. Check if the user has access to this material
+            if not MaterialAccess.objects.filter(user=user, material=material).exists():
+                return Response(
+                    {"error": "Forbidden: You do not have access to this material."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            drive_id = material.drive_file_id
+
+            # 3. Use a database transaction to ensure data consistency.
+            # This means if the Drive delete fails, the database won't be changed.
+            with transaction.atomic():
+                # 4. Delete the file from Google Drive FIRST.
+                if drive_id:
+                    try:
+                        delete_file_from_drive(drive_id)
+                    except Exception as e:
+                        # If the drive delete fails, roll back the transaction
+                        # and return an error.
+                        return Response(
+                            {"error": f"Failed to delete file from cloud storage: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+
+                # 5. If Drive delete was successful (or no drive_id),
+                #    delete the material from the database.
+                material.delete()
+
+            # 6. Return a "No Content" response
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Material.DoesNotExist:
+            return Response(
+                {"error": "Material not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
